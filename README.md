@@ -18,7 +18,7 @@ So you will get public link or sharable link of media content.
 
 # To run this bot:
 - First run this script on local host and login with telegram api to generate telegram session file.
-- Then upload script with telegram session file.
+- Then push script on heroku with telegram session file.
 - Make random conversation between your private telegram account and bot to grab chat_id of your private account and assign it's value to account_id variable name in script. 
 - update all token, keys etc credential in script to make bot working.
 
