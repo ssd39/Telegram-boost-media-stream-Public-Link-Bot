@@ -7,7 +7,7 @@ So you will get public link or sharable link of media content.
 # Workflow of bot:
 
 - User forward/send media to bot.
-- Bot will forward message to private telegram account.(There is size limit for bot to download cotent so we need to forward media from bot to private telegram account)
+- Bot will forward message to private telegram account.(There is size limit for bot to download content so we need to forward media from bot to private telegram account)
 - Using telegram api private telegram account will download content, upload content and return aws s3 key url to bot.
 - Bot reply this url to the user.
 
