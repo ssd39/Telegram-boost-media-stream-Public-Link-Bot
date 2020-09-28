@@ -2,7 +2,7 @@
 
 Downloading/Streaming media files from telegram is too slow.
 To overcome this problem bot will download media which is forwarded/sent to it by user and upload it to aws s3 bucket.
-So you will get public link or sharable link of media content.
+So user will get public link or sharable link of media content.
 
 ## Workflow of bot:
 
