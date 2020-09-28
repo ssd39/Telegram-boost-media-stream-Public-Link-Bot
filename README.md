@@ -1,7 +1,7 @@
 # Telegram boost media stream (PublicLink Bot)
 
 Downloading/Streaming media files from telegram is too slow.
-To overcome this this bot will download media forwarded/sent to it and upload it to aws s3 bucket.
+To overcome this problem bot will download media which is forwarded/sent to it by user and upload it to aws s3 bucket.
 So you will get public link or sharable link of media content.
 
 # Workflow of bot:
