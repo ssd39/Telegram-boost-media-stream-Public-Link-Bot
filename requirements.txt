@@ -1,0 +1,5 @@
+Flask
+requests
+boto3
+telethon
+cryptg
