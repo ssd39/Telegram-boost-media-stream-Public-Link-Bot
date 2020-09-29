@@ -9,6 +9,8 @@ import string
 import random
 import boto3
 from telethon.tl.types import DocumentAttributeFilename
+import asyncio
+import shutil
 
 bot=None
 #following all credentials are dummy
@@ -34,6 +36,27 @@ upload_progres=[]
 upload_pending_queue=[]
 app = Flask(__name__)
 s3 = boto3.client('s3')
+
+
+def id_generator(size=6, chars=string.ascii_lowercase):
+    return ''.join(random.choice(chars) for _ in range(size))
+
+def telegram_new_session():
+    global bot
+    try:
+        new_sess_db="mybot_"+id_generator()
+        shutil.copy("mybot_.session",new_sess_db+".session")
+        botx = TelegramClient(new_sess_db, api_id, api_hash)
+        botx.loop.run_until_complete(botx.connect())
+        if not botx.loop.run_until_complete(botx.is_user_authorized()):
+            botx.loop.run_until_complete(botx.send_code_request(phone_number))
+            botx.loop.run_until_complete(botx.sign_in(phone_number, input('Enter code: ')))
+        botx.start()
+        return botx
+    except Exception as e:
+        print("While creating new session",e)
+        return bot
+
 
 class MediaUploader:
     def __init__(self,filename):
@@ -64,7 +87,7 @@ class MediaUploader:
         self.last_time=now
         self.upload_speed=str(round((bd/td)/1000))+" kb/s"
         self.percentage=str(round((self.last*100)/self.total))+"%"
-        print("Upload Progress:",self.upload_speed,self.percentage)
+        print("Upload Progress:",self.filename,self.upload_speed,self.percentage)
 
     def upload(self):
         try:
@@ -75,7 +98,8 @@ class MediaUploader:
 
 
 class MediaDownloader:
-    def __init__(self,bot,message):
+    def __init__(self,file_name,bot,message):
+        self.file_name=file_name
         self.bot=bot
         self.message=message
         self.last=0
@@ -98,13 +122,13 @@ class MediaDownloader:
         self.last_time=now
         self.download_speed=str(round((bd/td)/1000))+" kb/s"
         self.percentage=str(round((current*100)/total))+"%"
-        print("Download Progress",self.download_speed,self.percentage)
+        print("Download Progress:",self.file_name,self.download_speed,self.percentage)
 
     def download(self):
         self.bot.loop.run_until_complete(self.bot.download_media(message=self.message,progress_callback=self.progress))
 
 def upload_task(fwd_id,file_name):
-    if len(upload_progres) < 5:
+    if len(upload_progres) <5:
         up=MediaUploader(file_name)
         upload_progres.append({"file_name": file_name, "class": up})
         up.upload()
@@ -121,21 +145,24 @@ def upload_task(fwd_id,file_name):
     else:
         upload_pending_queue.append({"file_name":file_name,"fwd_id":fwd_id})
 
-def download_task(fwd_id,message):
-    global bot
+def download_task(bot,event_loop,fwd_id,message):
+    print("NEW THREAD")
+    asyncio.set_event_loop(event_loop)
+    if not bot:
+        bot=telegram_new_session()
     if len(download_progess)<5:
         file_name=""
         for d in message.media.document.attributes:
             if type(d)==DocumentAttributeFilename:
                 file_name=d.file_name
                 break
-        md=MediaDownloader(bot,message)
+        md=MediaDownloader(file_name,bot,message)
         download_progess.append({"class":md,"message":message})
         md.download()
         download_progess.remove({"class":md,"message":message})
         if len(download_pending_queue)>=1:
             dk=download_pending_queue.pop(0)
-            t = threading.Thread(target=download_task, args=(dk["fwd_id"],dk["message"],))
+            t = threading.Thread(target=download_task, args=(bot,event_loop,dk["fwd_id"],dk["message"],))
             t.start()
         t1 = threading.Thread(target=upload_task, args=(fwd_id,file_name,))
         t1.start()
@@ -150,6 +177,7 @@ def telegram_login():
         bot.loop.run_until_complete(bot.send_code_request(phone_number))
         bot.loop.run_until_complete(bot.sign_in(phone_number, input('Enter code: ')))
     bot.start()
+
 
 
 def telegram_read_chat(username):
@@ -185,14 +213,14 @@ def webhook():
             print(r.text)
             message = telegram_read_chat(username)
             if message.media:
-                t = threading.Thread(target=download_task, args=(data["message"]["from"]["id"],message,))
+                event_loop=asyncio.new_event_loop()
+                t = threading.Thread(target=download_task, args=(None,event_loop,data["message"]["from"]["id"],message,))
                 t.start()
     except Exception as e:
         print(e)
     return "True"
 
 if __name__ == '__main__':
-    #first run on local pc to create telegram login session file then push api to heroku
     telegram_login()
     app.run(host='0.0.0.0',port=os.environ.get('PORT') or 8080)
 
